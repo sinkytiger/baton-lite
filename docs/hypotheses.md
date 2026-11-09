@@ -96,4 +96,75 @@ all k, and which traps the receiver falls into.
 
 ## Changes after registration
 
-(none yet)
+* 2026-11-06, no effect on answers: a Claude refusal now records its `stop_details` category. The one refusal
+  in the test run (Sonnet 5.5 taking over adjusted_roe-204 from qwen3:4b, turn 13) happened before this change,
+  so its category is unknown; as registered, it ends the episode and counts as wrong.
+* 2026-11-06, no effect on answers: the laptop slept from 17:01 to 19:16 during the Sonnet in-context sweep
+  (Windows event 42, sleep reason "Button or Lid"); the continuation running then resumed where it was, so only
+  its wall-clock time is off. `scripts/stay_awake.py` now holds the system-required execution state against idle
+  sleep until the run log shows the end; it does not stop a closed lid or a shutdown, and no power setting was
+  changed.
+* 2026-11-06, model-server failure: one qwen3:4b request in the Sonnet log-file runs ended with Ollama's "token
+  repeat limit reached" error (HTTP 500). As registered, the step was rerun and resumed from the saved turns.
+* 2026-11-06 21:08 to 2026-11-07 17:29, interruption: Windows shut down (fast-startup shutdown: Kernel-Power 42
+  with a user logoff; the log does not say who started it) during the Sonnet log-file runs, which ended every
+  process. The run resumed from the files on disk.
+* 2026-11-07, server build change: starting the Ollama app after the shutdown triggered its auto-updater, which
+  left Ollama 0.40.1 running. The earlier runs most likely used 0.40.14, the build the app reported on the
+  morning of 2026-11-07. Asking the new server again for three recorded qwen3:4b turns (same messages, same
+  options) gave three different replies; whether the old server would have repeated itself was not tested. Every
+  registered hypothesis (H1 to H4) uses runs that finished before the change. The Sonnet log-file runs for
+  margin_streak-201 to 205 and adjusted_roe-201 to 204 came from the old server and the other Sonnet log-file runs
+  from 0.40.1, so log-file versus in-context (exploratory) straddles the change.
+* 2026-11-07 22:32 to 2026-11-08 19:14, interruption: a second Windows fast-startup shutdown of the same kind,
+  during the Haiku 5.5 in-context sweep. The run resumed from the files on disk on the same Ollama build (0.40.1).
+* 2026-11-08 21:53 to 2026-11-09 08:13, interruption and second build change: a third shutdown of the same kind,
+  near the end of the Haiku 5.5 in-context sweep. At the next login the Ollama app installed 0.40.15 (07:18). The
+  Haiku detector and in-context runs up to split_dps-204 came from 0.40.1; the remaining in-context runs and all
+  Haiku log-file runs come from 0.40.15, started with `ollama serve` so that the app's updater cannot change it
+  again. The Haiku pair (exploratory) therefore also straddles a build change.
+* 2026-11-09, repeatability within one install: asking the Ollama install of 2026-11-09 (see the correction
+  below) again for ten qwen3:4b receiver turns it had recorded earlier the same day (the first two receiver turns
+  of five Haiku log-file continuations, same messages, same options) gave 3 identical replies and 7 different ones
+  (scripts/repeat_check.py, output in docs/repeatability_2026-11-09.txt). Temperature 0 with a fixed seed does not
+  make this setup reliably repeat itself, so the three differences seen after the 2026-11-07 build change cannot be
+  put down to the build: they are consistent with run-to-run variation. Each continuation in this study is one draw.
+* 2026-11-09, model-server rule, Haiku log-file runs only: in the Haiku log-file continuation from payout-202 at
+  k = 4, Ollama aborted a qwen3:4b reply with "token repeat limit reached" on every one of 30 tries (5 tries per
+  request, 6 runs of the step), and the step stopped. Rerunning, the registered response to a server failure,
+  could not get past it. Such an abort is the model's own reply cut off for repeating itself, so from then on it
+  counts as an empty reply, reported to the agent as a format error, after which the episode goes on and the turn
+  counts toward the 20-turn limit. A reply cut off at the 1,536-token limit was already a format error, though it
+  keeps its partial text. The rule touches
+  only the Haiku log-file continuations that ran after it (payout-202 from k = 4, payout-203 to 205 and
+  split_dps-201 to 205); no earlier run is changed. The one earlier abort (Sonnet log-file runs, 2026-11-06)
+  succeeded when the step was rerun. In the end the rule never applied: rerun with it in place, the payout-202
+  continuation from k = 4 finished without an abort, and no later reply was aborted (0 aborted turns recorded).
+* 2026-11-09, corrections to the run's history above, found by an independent audit and checked against the Windows
+  and Ollama logs. The laptop also slept a second time on 2026-11-06, for under a minute around 19:16, with the same
+  logged reason. On 2026-11-07 the updater passed through 0.40.15 and 0.40.7 within five minutes before stopping at
+  0.40.1; neither received a model (chat) request. Of the 113 Sonnet log-file runs, 82 (on 21 tasks) came from
+  0.40.1. The 2026-11-09 07:18 install of 0.40.15 did not complete: upgrade.log records "DeleteFile failed; code 5",
+  "User canceled the installation process" and "Rolling back changes". ollama.exe and the app report 0.40.15, but
+  lib/ollama (llama-server.exe, libllama.dll, ggml-base.dll, cuda_v12/ggml-cuda.dll) holds files dated 2026-10-08,
+  and the two llama-server crashes in the Windows log that day carry that build's time stamp, so these are most
+  likely the files 0.40.1 installed. The runs after 08:13 on 2026-11-09, including the repeatability check, used
+  this mixed install. The Windows log also shows four llama-server crashes during the run (2026-11-06 16:29 and
+  20:30, 2026-11-09 10:02 and 10:22). The client retried failed requests up to five times without recording them,
+  so the run log shows only failures that stopped a step.
+* 2026-11-09, corrections to how this file describes the paper, found by an independent audit after the test run
+  and checked against the paper's text. The tests, thresholds and verdicts do not change; the text above stays as
+  registered.
+  * Background: the paper's efficient model is not only Qwen3.8-27B. Section 3 uses it alone, but the 65.9% comes
+    from section 4.3, where GPT-5.6 Luna, a cloud model whose cost is counted, also takes over. The detector is
+    initialized from Qwen 3.5 2B and trained on handoff points annotated with Codex, using criteria that follow
+    the three readiness signs.
+  * H4: "degenerate, as in the paper" is wrong. The paper prompts the capable model itself, not a separate judge,
+    and reports that Kimi K3 never handed off, GLM-5.3 did on 6 of 113 tasks and GPT-5.6 Sol did on every task at
+    $3.75 against $5.32 alone. It reports no first-turn handoffs and does not use the word "degenerate". H4 here is
+    this study's own test of a qwen3:4b judge.
+  * H3 is a reading of the paper's progress tables, not a claim the paper states. The paper says readiness depends
+    on more than elapsed turns and that on Terminal-Bench "later handoffs do not monotonically improve accuracy".
+  * H1 is called a replication, but it tests a hand-written stand-in for the three signs, not the learned detector.
+    The stand-in is narrower than the paper's signs: the paper also accepts a runnable prototype as the artifact and
+    counts a failed check that exposes a localized problem as feedback.

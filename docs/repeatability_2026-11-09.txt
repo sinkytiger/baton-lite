@@ -1,0 +1,31 @@
+Repeatability check, 2026-11-09, before 12:30 KST, on an idle Ollama server (the mixed install described in
+docs/hypotheses.md: ollama.exe 0.40.15 with runtime libraries dated 2026-10-08). Five Haiku 5.5 -> qwen3:4b log-file
+continuations recorded after 08:13 that day, first two receiver turns each, replayed with the same messages and
+options. Produced by the logic of scripts/repeat_check.py (then run from a scratch folder) with arguments
+runs/handoff/claude-haiku-5-5__qwen3_4b logfile 1794179580 5. Output as printed:
+
+logfile   adjusted_roe-205 k=5 turn 6: DIFFERENT
+   old: {   "thought": "I need to understand the current state of the workspace and the previous agent's work to continue the task. The previous agent has already worke
+   new: {   "thought": "I need to understand the current state of the workspace and the previous agent's work to continue the task. The previous agent has already worke
+logfile   adjusted_roe-205 k=5 turn 7: DIFFERENT
+   old: {   "thought": "I need to check the previous agent's work to see what they have already done. The last turn (turn 5) shows they computed ROE for LGAR, PAIN, and
+   new: {   "thought": "I need to check the previous agent's work to see what they have already done. The last turn shows they computed ROE for LGAR, PAIN, and WHIL com
+logfile   adjusted_roe-201 k=2 turn 3: DIFFERENT
+   old: {   "thought": "I need to compute the fiscal 2025 adjusted return on equity for every company in the Industrials sector. First, I'll check the previous agent's
+   new: {   "thought": "I need to understand the current state of the workspace and the previous agent's work to continue the task. The previous agent has already worke
+logfile   adjusted_roe-201 k=2 turn 4: DIFFERENT
+   old: {   "thought": "The previous agent tried to use pandas but it's not installed. I need to avoid pandas and use standard libraries instead. I'll read the amendmen
+   new: {   "thought": "The previous agent tried to use pandas but it's not installed. I need to avoid pandas and use standard libraries instead. I'll read the amendmen
+logfile   growth_top3-205 k=3 turn 4: same
+logfile   growth_top3-205 k=3 turn 5: DIFFERENT
+   old: {   "thought": "The previous agent has already printed the consolidated revenue data for 2023, 2024, and 2025 for several companies. They also printed the notes
+   new: {   "thought": "The previous agent has already printed the notes and consolidated revenue data. They found that EMLK, MBAR, and MDOR have restatements. The reve
+logfile   size_screen-205 k=2 turn 3: DIFFERENT
+   old: {   "thought": "I need to find companies that reported consolidated revenue of at least $2,880 million in fiscal 2025. The task says to use consolidated figures
+   new: {   "thought": "I need to figure out which companies reported consolidated revenue of at least $2,880 million in fiscal 2025. The task says to use consolidated
+logfile   size_screen-205 k=2 turn 4: same
+logfile   growth_top3-203 k=5 turn 6: DIFFERENT
+   old: {   "thought": "I need to figure out which three companies had the fastest consolidated revenue growth in fiscal 2025 compared with fiscal 2024. The task says t
+   new: {   "thought": "I need to figure out which three companies had the fastest consolidated revenue growth in fiscal 2025 compared with fiscal 2024. The task says t
+logfile   growth_top3-203 k=5 turn 7: same
+identical 3, different 7

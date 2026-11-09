@@ -2,10 +2,10 @@
 
 A capable-only trajectory is recorded once. A handoff after turn k replays the first k actions in a fresh
 workspace (checking that each turn leaves the same file tree as recorded), then the receiver continues with
-either the whole prefix in its context or only a log file, as in the paper. Because the receiver decodes
-greedily, the continuation from turn k does not depend on which policy chose k, so the continuation from every
-k is computed once and every policy becomes a lookup. Cost of a handoff = the source's API cost for turns 1..k;
-the local receiver costs nothing.
+either the whole prefix in its context or only a log file, as in the paper. The continuation from every k is
+computed once and every policy that picks k uses it, so a policy is a lookup. (qwen3:4b at temperature 0 with a
+fixed seed did not repeat its replies exactly on this machine, see docs/hypotheses.md, so each continuation is
+one draw.) Cost of a handoff = the source's API cost for turns 1..k; the local receiver costs nothing.
 """
 
 from __future__ import annotations
@@ -96,9 +96,11 @@ def fixed_point(source: Trajectory, p: float) -> int | None:
 
 
 def rule_point(source: Trajectory) -> int | None:
-    """The paper's three readiness signs, read from the workspace record: an agent-made file exists (artifact),
-    the turn's code ran without error after the agent had already looked at the data (feedback), and the turn
-    opened no data file it had not opened before (the remaining work is focused)."""
+    """A hand-written stand-in for the paper's three readiness signs, read from the workspace record: an agent-made
+    file exists (artifact), the turn's code ran without error after the agent had already looked at the data
+    (feedback), and the turn opened no data file it had not opened before (the remaining work is focused). It is
+    narrower than the paper's signs, which also accept a runnable prototype and a failed check that narrows the
+    problem down."""
     seen: set[str] = set()
     for t in source.turns:
         data_reads = {r for r in t.reads if r.startswith("data/") or r == "README.md"}

@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--receiver", required=True)
     sub.add_parser("spent")
     sp = sub.add_parser("report"); sp.add_argument("--split", default="test", choices=["dev", "test", "all"])
-    sp.add_argument("--out")
+    sp.add_argument("--out"); sp.add_argument("--csv", help="also write one row per recorded trajectory here")
     a = p.parse_args(argv)
     try:
         if a.cmd == "solo":
@@ -235,10 +235,17 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "spent":
         print(f"${spent():.4f}")
         return 0
-    from .report import report
+    from .report import CSV_FIELDS, outcome_rows, report
     text = report(RUNS, a.split)
     if a.out:
         Path(a.out).parent.mkdir(parents=True, exist_ok=True)
         Path(a.out).write_text(text, encoding="utf-8")
+    if a.csv:
+        import csv
+        Path(a.csv).parent.mkdir(parents=True, exist_ok=True)
+        with open(a.csv, "w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=CSV_FIELDS)
+            w.writeheader()
+            w.writerows(outcome_rows(RUNS, a.split))
     print(text)
     return 0

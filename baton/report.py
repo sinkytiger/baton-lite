@@ -48,7 +48,7 @@ def wilson(k: int, n: int) -> tuple[float, float]:
     den = 1 + z * z / n
     c = (p + z * z / (2 * n)) / den
     h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den
-    return c - h, c + h
+    return max(0.0, c - h), min(1.0, c + h)
 
 
 class Pair:
@@ -184,6 +184,40 @@ def pair_section(pair: Pair, reverse: dict | None) -> list[str]:
             traps[tr.score.get("trap") or tr.score.get("status")] += 1
     lines += ["", "Wrong in-context continuations by cause: " + ", ".join(f"{k} {v}" for k, v in traps.most_common())]
     return lines
+
+
+CSV_FIELDS = ["run", "source", "receiver", "transfer", "task", "template", "handoff_after", "source_turns", "turns",
+              "end", "correct", "status", "trap", "source_cost_usd", "receiver_cost_usd", "aborted_turns"]
+
+
+def outcome_rows(runs: Path, split: str = "test") -> list[dict]:
+    """One row per recorded trajectory (alone or handoff), enough to recount every table without the raw runs."""
+    tids = {t.tid for t in build_tasks() if split == "all" or t.split == split}
+    rows, solo_len = [], {}
+    for f in sorted((runs / "solo").glob("*/*.json")):
+        tr = Trajectory.load(f)
+        if tr.task not in tids:
+            continue
+        solo_len[(tr.models[0], tr.task)] = len(tr.turns)
+        rows.append({"run": "alone", "source": tr.models[0], "receiver": "", "transfer": "", "task": tr.task,
+                     "handoff_after": "", "turns": len(tr.turns), "source_cost_usd": round(tr.cost, 6),
+                     "receiver_cost_usd": 0.0, "tr": tr})
+    for f in sorted((runs / "handoff").glob("*/*/*/k*.json")):
+        tr = Trajectory.load(f)
+        if tr.task not in tids:
+            continue
+        k = tr.handoff_at
+        rows.append({"run": "handoff", "source": tr.models[0], "receiver": tr.models[1], "transfer": tr.transfer,
+                     "task": tr.task, "handoff_after": k, "turns": len(tr.turns),
+                     "source_cost_usd": round(sum(t.cost for t in tr.turns[:k]), 6),
+                     "receiver_cost_usd": round(sum(t.cost for t in tr.turns[k:]), 6), "tr": tr})
+    for r in rows:
+        tr = r.pop("tr")
+        r.update(template=r["task"].rsplit("-", 1)[0], source_turns=solo_len.get((r["source"], r["task"]), ""),
+                 end=tr.end, correct=int(bool(tr.score.get("correct"))), status=tr.score.get("status"),
+                 trap=tr.score.get("trap") or "",
+                 aborted_turns=sum(1 for t in tr.turns if t.usage.get("aborted")))
+    return rows
 
 
 def report(runs: Path, split: str = "test") -> str:

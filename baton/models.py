@@ -94,6 +94,8 @@ class ClaudeChat:
         usage = {"input_tokens": u.input_tokens or 0, "output_tokens": u.output_tokens or 0,
                  "cache_creation_input_tokens": u.cache_creation_input_tokens or 0,
                  "cache_read_input_tokens": u.cache_read_input_tokens or 0, "request_id": r._request_id}
+        if r.stop_reason == "refusal" and getattr(r, "stop_details", None):
+            usage["refusal_category"] = r.stop_details.category
         text = "".join(b.text for b in r.content if b.type == "text")
         raw = r.to_dict()["content"]
         return Reply(text, raw, usage, cost_of(self.model, usage), r.stop_reason or "end_turn")
@@ -113,6 +115,9 @@ def action_text(obj: dict) -> str:
         return f"THOUGHT: {thought}\nSUBMIT"
     code = str(obj.get("code", "")).strip("\n")
     return f"THOUGHT: {thought}\n```python\n{code}\n```"
+
+
+REPEAT_ABORT = "token repeat limit reached"
 
 
 class OllamaChat:
@@ -164,6 +169,13 @@ class OllamaChat:
                         pass   # a cut-off object stays as it is and the agent loop reports a format error
                 return Reply(text, None, usage, 0.0, r.done_reason or "stop")
             except Exception as exc:  # noqa: BLE001 - connection resets, server restarts
+                if agent_turn and REPEAT_ABORT in str(exc):
+                    # Ollama stopped a reply that kept repeating itself. That is the model's own reply, cut off,
+                    # not an outage: like a reply cut off at num_predict, it becomes a format error and the
+                    # episode goes on (added 2026-11-09, after one continuation aborted 30 times in a row).
+                    usage = {"prompt_tokens": 0, "output_tokens": 0, "seconds": 0.0, "dropped_pairs": dropped,
+                             "raw_json": "", "aborted": REPEAT_ABORT}
+                    return Reply("", None, usage, 0.0, "aborted")
                 last = exc
                 time.sleep(10 * 2 ** attempt)
         raise ModelError(f"{self.model}: {last}")

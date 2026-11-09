@@ -84,3 +84,37 @@ def test_cost():
          "output_tokens": 1_000_000}
     assert abs(cost_of("claude-sonnet-5-5", u) - (2 + 2.5 + 0.2 + 10)) < 1e-9
     assert cost_of("qwen3:4b", u) == 0
+
+
+class _Failing:
+    def __init__(self, message):
+        self.message, self.calls = message, 0
+
+    def chat(self, **kw):
+        self.calls += 1
+        raise RuntimeError(self.message)
+
+
+def _ollama(client):
+    from baton.models import OllamaChat
+    chat = OllamaChat.__new__(OllamaChat)
+    chat.client, chat.model, chat.num_ctx, chat.num_predict, chat.think = client, "qwen3:4b", 8192, 1536, False
+    chat.char_budget = 10_000
+    return chat
+
+
+def test_repeat_abort_is_a_format_error_not_an_outage(monkeypatch):
+    import pytest
+    from baton import models
+    monkeypatch.setattr(models.time, "sleep", lambda s: None)
+    client = _Failing("prediction aborted, token repeat limit reached (status code: 500)")
+    r = _ollama(client).reply("sys", [{"role": "user", "content": "task"}])
+    assert client.calls == 1 and r.text == "" and r.stop == "aborted"
+    assert r.usage["aborted"] == models.REPEAT_ABORT and parse(r.text)[0] == "error"
+    outage = _Failing("connection refused")
+    with pytest.raises(models.ModelError):
+        _ollama(outage).reply("sys", [{"role": "user", "content": "task"}])
+    assert outage.calls == 5
+    judged = _Failing("prediction aborted, token repeat limit reached (status code: 500)")
+    with pytest.raises(models.ModelError):      # a judge call is not an agent turn: still treated as a failure
+        _ollama(judged).reply("sys", [{"role": "user", "content": "task"}], schema={"type": "object"})

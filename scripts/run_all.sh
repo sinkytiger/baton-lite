@@ -37,5 +37,5 @@ attempt logfile --source $S --receiver $Q --judge $Q || exit 1
 attempt detect --source $H --judge $Q || exit 1
 attempt sweep --source $H --receiver $Q --transfer incontext || exit 1
 attempt logfile --source $H --receiver $Q --judge $Q || exit 1
-"$PY" -m baton report --split test --out reports/results.md
+"$PY" -m baton report --split test --out reports/results.md --csv reports/outcomes.csv
 "$PY" -m baton spent
